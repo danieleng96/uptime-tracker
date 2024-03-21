@@ -1,0 +1,11 @@
+
+
+.plotcontainer {
+    /* background-color: aquamarine; */
+    display: grid;
+    align-items: center;
+    grid-template-columns: 2fr 1fr;
+    padding: 5pt;
+    margin: 5pt;
+}
+
