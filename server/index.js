@@ -20,7 +20,7 @@ const httpServer = app.listen(port)
 // const wss = new ws.Server({ noServer : true })
 
 const wss = new ws.Server({ noServer : true })
-//noServer = true because I will upgrade the http server
+//noServer = true because I will upgrade the http server. might not be necessary
 
 httpServer.on('upgrade', (req,socket, head) => {
 
@@ -29,125 +29,147 @@ httpServer.on('upgrade', (req,socket, head) => {
     })
 })
 
-
 app.use(express.json());
 app.use(cors()); // Use cors middleware
 
+const sendGet = async (url, sampleRate, intWindow) => {
+                            try {
+                            const t0 = Date.now();
+                            const resp = await axios.get(url);
+                            const latency = Date.now()-t0;
+    //needs to be reworked
+                            return ({type: 'stream', url: url, status: resp.status ,latency: latency, sampleRate: sampleRate, intWindow:intWindow, tf:t0+latency})}
+                            catch (e) {
+                                return ({type: 'stream', url: url, status: e.status, latency: 0, sampleRate: sampleRate, intWindow: intWindow, tf:Date.now()})
+                            }
+                }
+
+const toggleSingle = (on, client) => {
+    //disable connection for both
+    //if on should reconnect
+    //each toggle on or off
+    if (client.intVals)
+    // if (on) {
+    // clearInterval(cli.interval);}3
+    // else
+    {
+        clearInterval(client.interval);
+             {
+            if (on)
+                {sendAndUpdateInterval(client);
+                    console.log(client.id)
+                }
+            else {
+                client.send(JSON.stringify({type: 'pause', url: client.id, tf:Date.now()}))}
+                console.log('pause', client.id)
+            }}}
+
+
 wss.on('connection', (ws) => {
-    console.log('connected to client')
+    console.log('connected to client');
 
-ws.on('message', (packet) => {
-    // wss.clients.forEach((client) => {
-    //     // console.log("client", client)
-    //     if (client.readyState = ws.OPEN) {
+    ws.on('message', (packet) => {
+        const message = JSON.parse(packet.toString());
+        console.log(message)
+        // const { type, body } = message;
+        const { type, body} = message;
+        switch (type) {
+            //need cases to handle: turning on/off all connections: delete connection: initInterval(make connection)
+            case 'metering':
+                
+
+                if (body.u === 'all') {
+                if (wss.clients) {
+                    wss.clients.forEach(client => {                    
+                            toggleSingle(body.on, client)})}}
+                    
+                            else
+                {
+                    if (wss.clients) {
+                        wss.clients.forEach(client => {                 
+                            if (client !== ws && client.id === body.u) {   
+                                toggleSingle(body.on, client)}
+                                //disable connection for both
+                                //if on should reconnect
+                                // Terminate connection
+                    })}
+                }
+                break;
+
             
-            const u = JSON.parse(packet.toString())[0]
-            const sampleRate = JSON.parse(packet.toString())[1]
-            const intWindow = JSON.parse(packet.toString())[2]
+            // case 'meteringOn':
+            //     //needs to have initInterval run first to set interval as variable in ws
+            //     wss.clients.forEach(client => {
+            //         //want to pause interval, save and be able to reactivate.
+                
+            //         console.log('turning on all connections');
+            //         setInterval(client.interval); // Clear the interval fromprevious client
+            //          // Terminate connection
+            //     })
 
-            console.log(u, sampleRate, intWindow)
+            // case 'metering':
+            //         // Reactivate interval for all clients
+            //         if (wss.clients) {
+            //         wss.clients.forEach(client => {
+            //             toggleSingle(true, client)
+            //         });}
+            //         break
+            case 'delete':
+                wss.clients.forEach(client => {
+                    //remove all duplicate clients, clear their intervals, terminate connections
+                if (client !== ws && client.id === body.u) {
+                    client.close()
+                }})
+                break
 
-            sendGet = async (url)  => {
-                        try {
-                        const t0 = Date.now();
-                        const resp = await axios.get(url);
-                        const latency = Date.now()-t0;
+            case 'initInterval':
+                //init interval, when connection is first made, sets interval and url to get data. can be overwritten.
+                const {url, sampleRate, intWindow } = body;
+                console.log(type,url)
 
-                        return ({url: url, status: resp.status ,latency: latency, sampleRate: sampleRate, intWindow:intWindow})}
-                        catch (e) {
-                            return ({url: url, status: e.status, latency: 0, sampleRate: sampleRate, intWindow: intWindow})
-                        }
-            }
+                wss.clients.forEach(client => {
+                    //remove all duplicate clients, clear their intervals, terminate connections
+                if (client !== ws && client.id === url) {
+                    console.log('Closing existing connection with the same identifier');
+                    clearInterval(client.interval); // Clear the interval fromprevious client
+                    client.terminate(); // Terminate connection
+                }
+                });
 
-            const interval = setInterval(async () => {
-                const data = await sendGet(u)
-                ws.send(JSON.stringify(data));
-                console.log('sending...', data)
-            }, (parseInt(sampleRate)*1000));
-        }
-    
+                // set samplerate and intervalwindow for the current ws client
+                ws.id = url;
+                ws.sampleRate = sampleRate;
+                ws.intWindow = intWindow;
+                ws.intVals = {url,sampleRate,intWindow}
+
+                const first = async () =>{ws.send(JSON.stringify(await sendGet(url, sampleRate, intWindow)))};
+                first()
+                //send data immediately after setting up the connection, the rest are handled by intervals
+                sendAndUpdateInterval(ws, url, sampleRate, intWindow);
+                break
+        default:
+            console.log('Unknown message type:', type);
+        }});
 
 
-)
-
-
-ws.on('close', () => {
-    console.log('WebSocket disconnected (server)');
-    clearInterval(interval); // Stop sending updates when client disconnects
+    ws.on('close', () => {
+        console.log('WebSocket disconnected (server)');
+        clearInterval(ws.interval) // cancel sending interval updates when client disconnects
+    });
 });
+
+const sendAndUpdateInterval = (ws) => {
+    const {url, sampleRate, intWindow} = ws.intVals
+    //updates the interval, needs separate function on reinits to build
+    // ws.intervalFunc = async () => {
+    //     ws.send(JSON.stringify(await sendGet(url, sampleRate, intWindow)));
+    //     console.log('sending...', url);
+    
+    ws.interval = setInterval(async () => {
+        ws.send(JSON.stringify(await sendGet(url, sampleRate, intWindow)));
+        console.log('sending...', url, sampleRate, intWindow);
+    }, sampleRate * 1000);
 }
-);
 
 
-app.post('/get-status', async (req, res) => {
-    const {url, sampleRate} = req.body;
-
-    //extract urls and sample rate for each
-    //will set each url to run separately
-    // const {urls, sampleRate} = req.body;
-
-    // const urlArr = urls.split(',');
-
-    try {
-
-    //parent function to initialize stream of the sendGet functions
-
-    
-
-
-    sendGet = async (url)  => {
-        //actual sending of request to desired website.
-            // if (!urls.length) return;
-                // const url = urls.shift();
-                const t0 = Date.now();
-                const resp = await axios.get(url);
-                const latency = Date.now()-t0;
-
-                // const data = await resp.json();
-                // console.log('resp ', url, ':', data);
-                return (latency)
-                // setTimeout(() => sendGet(url, sampleRate*1000), sampleRate*1000);
-    }
-
-    // wss.on('connection',  (ws) => {
-    //     console.log('connected to client')
-    
-    // const interval = setInterval(async (url, sampleRate) => {
-    //     const data = await sendGet(url)
-    //     // console.log('returning: ' , data))
-    //     ws.send(JSON.stringify(data));
-    //     // const data = [{a:'a'}]
-    //     // ws.send(data);
-    //     console.log('sending...')
-    // }, sampleRate);
-    
-    // ws.on('close', () => {
-    //     console.log('WebSocket disconnected');
-    //     clearInterval(interval); // Stop sending updates when client disconnects
-    // });
-    // }
-    // );
-
-    
-
-        // const response = await axios.get(url);
-        const response = await sendGet(url, sampleRate);
-        // ws.emit(JSON.stringify(response.head));
-
-        res.status(200).send({ status: `initializing ${response}` });
-        } catch (error) {
-        res.status(500).send({ status: 'down', error: error.message });
-        }
-  });
-
-
-
-// app.get('/check-website-status', async (req, res) => {
-//   try {
-//     const response = await axios.head('https://www.youtube.com');
-//     res.status(201).send({ status: response.status });
-//   } catch (error) {
-//     res.status(500).send({ status: 'down', error: error.message });
-//   }
-// });
 
