@@ -1,4 +1,3 @@
-﻿# hrl-uptime-exercise
 Hrl uptime exercise:
 
 Author: Daniel Eng
@@ -21,6 +20,12 @@ On the frontend, the client would receive this data packet and add it to a data 
 
 There would be a unique data signature for bad errors and for paused metering,
 that the plotting software would interpret and display accordingly.
+
+dummyDowntimeServer.js can be initialized from command line and with:
+    node dummyDowntimeServer 1234 0.75
+    for a server running on http://localhost:1234 with uptime of 75%.
+
+https commercial sites or localhosts with port specified all are handled, with extensions and further paths.
 
 Stopping metering allows user to zoom or export data from a single plot.
 
