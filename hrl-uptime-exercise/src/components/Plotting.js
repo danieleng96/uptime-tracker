@@ -1,39 +1,35 @@
 //plotting for each site monitored.
-//needs to live update using an array of data and useState
-//data processed in (), but just takes array and plots
+//tracks pauses by looking for -1 values in dataArray and finding same index in dataArray
+//finds zeros by looking for 0.
+//zeros will plot separately, an outage is labelled with a red 'x' and plotted with latency = 0
 
 import Plot from 'react-plotly.js';
 // import "./Plotting.css";
 
 const DataPlot = ({url, dataArray, intWindow, color, timeArray}) => {
-    //data is of the form of each individual website.
-    // console.log('color',color)
-    // const formatData = (data) =>
-    // {
-    // let indices = []
+    console.log(dataArray)
     const splitUrl = new URL(url)
-    const maxVal= Math.max(...dataArray
-        );
-
-    console.log(maxVal)
+    //split url to use in plot to show port, protocol, etc
 
     const t0 = timeArray[0]
     const tf = timeArray[timeArray.length-1]
-
+    //first and last time for use later
 
     const zeroIndices = dataArray.reduce((indices, value, index) => {
+        //find zeros in dataArray
         if (value === 0) indices.push(index); 
         return indices;
         }, []);
     
     const splitArraysAtValue = (dArray, tArray) =>{
         // Find indices where the value matches in dataArray
+        // value of -1 indicates a pause in metering, and split array
         const value = -1
-        const dataPlot = ([tArray,dArray]) =>
+    const dataPlot = ([tArray,dArray]) =>
         
         {
             return {
-            
+            //this is my template for each successful plot
             name: 'Response Times',
             x: tArray,
             x: tArray.map(item=>(item-t0)/1000),
@@ -80,64 +76,12 @@ const DataPlot = ({url, dataArray, intWindow, color, timeArray}) => {
         return result;
 
     }
-
-    // dataSplits = splitArraysAtValue(dataArray, tArray)
-
-
-    // const rectangles = zeroIndices.map((zeroIndex, index) => ({
-    //     type: 'rect',
-    //     xref: 'x',
-    //     yref: 'paper',
-    //     x0: zeroIndex,
-    //     y0: 0,
-    //     x1: index < zeroIndices.length - 1 ? zeroIndices[index + 1] : zeroIndex + sampleRate,
-    //     y1: 1,
-    //     fillcolor: '#ff0008',
-    //     opacity: 0.3,
-    //     line: {
-    //         width: 0
-    //     }
-    // }));
-
-    // }
-
-    // const computerDowntime = (dataArray) => {
-    //     dataArray.length
-    // }
-    // const pushXY = (x,y,item,index) => {
-        
-    //         x.push(index*sampleRate);
-    //         y.push(item)
-    // }
-
-    // const findZeros = (data) => {
-    //     let x = []
-    //     let y = []
-    //     data
-    // .map((item, index) => ({ item, index }))
-    // .filter(({ item }) => item == 0)
-    // .forEach({ item, index}) => (
-    //     pushXY(x,y,item,index);
-    //     )
-    //     return [x,y]
-    
-    // }
-        // y.push(item));
-    
-
-    // let zeros = findZeros(dataArray)
-    
-    // const dataSplits = co
     
     return (
-    // <div className = 'data-plot'>
-    //     DATA PLOT
-
-    // </div>
-    
+  
     <Plot className = 'plot'
         data={[
-
+            //plots each split data array (splits occur when metering is turned off, different from outages where response is zero.)
         ...splitArraysAtValue(dataArray, timeArray), 
 
 
@@ -163,7 +107,7 @@ const DataPlot = ({url, dataArray, intWindow, color, timeArray}) => {
             title: {
                 text: `Host ${splitUrl.hostname}<br>Protocol ${splitUrl.protocol}${splitUrl.port?`<br>Port:${splitUrl.port}`:''}`,
                 font: {
-                family: 'Courier New, monospace',
+                // family: 'Courier New, monospace',
                 size: 15}},
                 
             showlegend: false,

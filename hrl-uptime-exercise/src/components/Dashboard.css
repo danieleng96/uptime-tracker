@@ -1,41 +1,33 @@
 
+/* custom css file, mostly using classes instead of id in case of duplicate elements, which is just a style decision */
+
+
+.page-container {
+    margin-top: 5%;
+    display: grid;
+    grid-template-columns: 1fr 3fr;
+ 
+}
+
 .init-container .input-container .plot-wrapper {
-    /* padding: 10px;
-    margin: 10px; */
+    margin-top: 30px;
     min-width: 40px;
     min-height: 20px;
     
     border-radius: 5%;
     border: 3pt solid;
     border-color: rgb(32, 1, 61);
-    /* aspect-ratio: 2; */
 }
 
-p {text-align: center;}
 
-h1 {
-    color: black;
-    font-family: 'Courier New, monospace';
-}
 
-h2 {
-    color: black;
-    font-size: small;
-}
 
-button {
-    background-color: rgb(255, 238, 0);
-    border-radius: 3pt;
-    border: 1pt solid;
-    border-color: black;
-    padding:2pt;
-    margin:5pt;
-}
+
 
 .plot-wrapper {
     display:grid;
     grid-template-columns: 1fr 1fr 1fr;
-    
+    border-radius:5pt;
     gap: 3pt;
     /* background-color: beige; */
 
@@ -65,6 +57,26 @@ button {
     right: 50pt,
 }
 
+.tab-title {
+    background-color: beige;
+    border-left: 2pt solid;
+    border-right: 2pt solid;
+    border-top: 2pt solid;
+    border-color: black;
+    color: black;
+    /* width: 400pt; */
+    position:relative;
+    height:30px;
+    width: 300px;
+    top:-30px;
+    left:0;
+    border-top-left-radius: 5pt;
+    border-top-right-radius: 5pt;
+    border-bottom-left-radius: -5pt;
+    border-bottom-right-radius: -5pt;
+
+}
+
 .init-container {
     background-color: beige;
     /* width:50%; */
@@ -82,9 +94,10 @@ button {
     margin: 3pt;
     border: 2pt solid;
     border-color: rgb(32, 1, 61);
-    display:grid;
+    /* display:grid; */
     align-items: center;
     justify-content: center;
+    
 }
 
 
@@ -109,15 +122,27 @@ th {
     padding:2pt;
 }
 
-.page-container {
-    background-color: rgb(93, 0, 180);
-    /* width: 100%; */
-    display: grid;
-    /* align-items: center; */
-    grid-template-columns: 1fr 3fr;
-    /* padding: 5pt;
-    margin: 5pt; */
+p {text-align: center;}
+
+h1 {
+    color: black;
+    font-family: 'Courier New, monospace';
 }
+
+h2 {
+    color: black;
+    font-size: small;
+}
+
+button {
+    background-color: rgb(255, 238, 0);
+    border-radius: 3pt;
+    border: 1pt solid;
+    border-color: black;
+    padding:2pt;
+    margin:5pt;
+}
+
 
 
 
@@ -171,7 +196,7 @@ th {
 }
 
 .meter-button.On {
-    background-color: rgb(180, 29, 29);
+    background-color: rgb(239, 153, 153);
 }
 
 

@@ -1,43 +1,42 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import "./ConfigNew.css";
+//React.js frontend. takes in data in form of initializations, starts plots,
+//communicates with server which is in hrl-uptime-exercise/server/index.js
+
+
+
+
+
+
+
+
+import React, { useState } from 'react';
+import "./Dashboard.css";
 import DataPlot from './Plotting';
 
-// const backurl = 'http://localhost:5000/monitor'
-// const backurl = 'http://localhost:5000/get-status'
 
-//config new has the function of having user input saved by useState, creating a pseudo-form
-//needs to have a place to enter url
 
-const InitializeMetering = () => {
+
+const Dashboard = () => {
 
 const [unitInterval, setUnitInterval] = useState(true)
 const [unitSample, setUnitSample] = useState(false)
-const [urlBase, setUrlBase] = useState('https://youtube.com')
+const [baseUrl, setBaseUrl] = useState('https://youtube.com')
+//baseUrl is without port, this can include full other url.
 const [url, setUrl] = useState('https://youtube.com')
+//using formatUrl sets on button press to insert port into the baseUrl
 const [port, setPort] = useState(false)
 const [meter,setMeter] = useState(true)
 //controls whether metering button disables or enables all metering
 const [interval, setInterval] = useState(5)
 const [sampleRate, setSampleRate] = useState(2)
+
+//does not have persistence on refresh, refresh is how to reset all at once
+//to add persistence I would use react's JS-cookie, save the dataObj in cookies,
+//create init function to loop through each url and params to reEnter stale connections and intervals
+
 const [dataObj, setDataObj] = useState({})
-//data object is an object of arrays. may be obj of objs.
-const [connTotal, setConnTotal] = useState(0);
 
-const formatUrl= (urlString, portNumber) => {
-    const fUrl = new URL(urlString);
-    //formatted URL
-    if (portNumber>0) 
-    {fUrl.port = portNumber;
-    }
-    // Convert the URL object back to a string
-
-    setUrl(fUrl.toString()
-    );
-    return fUrl.toString()
-}
-
-// console.log(dataObj)
+// colors to differentiate plot and table rows
+//sliiiight bug in that if you update the same url's plot after others have been initialized, different plots will use the same colors. minor bug
 const colors = [
     "#ffd700",
     "#ffb14e",
@@ -48,159 +47,15 @@ const colors = [
     "#0000ff"
 ]
 
+//data object is an  obj of objs.
+//dataObj = {keys = url:{keys = color, intWindow, sampleRate, data, time}}
 
-
-const updateData = ({url, intWindow, sr, incomingData, tf}) => {
-
-    //number of elements is intWindow/sr to maintain small enough data window.
-    const dataLen = Math.floor(intWindow/sr)
-    //get last time
-
-    // finds window, but might be too slow
-    const calcWindow = (timeArr, intWindow) => {
-    const targetTime = timeArr[timeArr.length-1]-intWindow*1000
-    for(var i=0, l=timeArr.length; i<l; i++){
-        if(timeArr[i] > targetTime){
-            console.log('index',i)
-          return i
-        }}}
-    // if (Object.keys(dataObj).includes(url))
-
-    //     {let window = calcWindow(dataObj[url].data, intWindow)
-    //     console.log('calculated window',window, 's')}
-
-    // [...(prevDataObj[url]?.data.slice(-(dataLen+1)) || []),incomingData]
-    //new array if data is paused
-
-    setDataObj((prevDataObj) => 
-        ({
-        ...prevDataObj,
-        [url]:
-    {
-        ["intWindow"]: prevDataObj[url]?.intWindow || intWindow,
-        ["sampleRate"]: prevDataObj[url]?.sampleRate || sr,
-        ["color"]: prevDataObj[url]?.color || colors[Object.keys(prevDataObj).length%(colors.length+1)],
-        ["data"]:[...(prevDataObj[url]?.data || []),incomingData],
-        ["time"]:[...(prevDataObj[url]?.time || []),tf],
-        // ["data"]:[...(prevDataObj[url]?.data.slice(calcWindow(prevDataObj[url].data,intWindow)) || []),incomingData],
-        // ["time"]:[...(prevDataObj[url]?.time.slice(calcWindow(prevDataObj[url].data,intWindow)) || []),tf]
-    }})
-
-        // [url]:{
-        // ["intWindow"]: intWindow,
-        // ["sampleRate"]: sr,
-        // ["color"]: prevDataObj[url]?.color || colors[Object.keys(prevDataObj).length%(colors.length+1)],
-        // ["data"]:[...(prevDataObj[url]?.data.slice(calcWindow(prevDataObj[url]?.data,intWindow)) || []),incomingData],
-        // ["time"]:[...(prevDataObj[url]?.time.slice(calcWindow(prevDataObj[url]?.data,intWindow)) || []),tf]}})
-        //add in window slicing here, so the data does not get too large.
-        //colors repeat, would configure differently if needed
-        //intWindow/sr (sampleRate) to get number of datapoints that should be collected.
-        )
-        // Append incoming data to the existing array
-    };
-
-    const handleDeleteUrl = ({urlKey}) => {
-        setDataObj(current => {
-            const newDataObj = { ...current };
-            delete newDataObj[urlKey];
-            return newDataObj;
-        });
-    };        
-
-const meteringTog = ({type,u,bool}) => {
-    //this could be done in http
-
-    const wsTog = new WebSocket('ws://localhost:5000');
-
-    wsTog.onopen = () => {
-   
-    // wsTog.send(JSON.stringify({type:`metering${meter?'On':'Off'}`, body: ''}))
-        console.log('metering:', meter)
-        wsTog.send(JSON.stringify({type:type, body: {on:!bool,u:u}}))
-        if (u === 'all')
-        {setMeter(!meter)}
-
-        wsTog.close()
-    };
-        
-    wsTog.onclose = () => {
-        console.log('Meter Tog disconnected (client)');
-        //   handleDeleteUrl(ws.id)
-    };}
-
-const initWebSocket = (url) => {
-
-    const ws = new WebSocket('ws://localhost:5000');
-
-  ws.onopen = () => {
-
-    console.log('WebSocket connected', dataObj);
-
-
-    if (Object.keys(dataObj).includes(url)) {
-        handleDeleteUrl({urlKey :url})
-        console.log('removed previous data,', url)
-    } else {console.log([url], typeof(url), Object.keys(dataObj))}
-
-    const msgInit = {
-        type:'initInterval',
-        body:{
-        url:url,
-        sampleRate:sampleRate*(unitSample? 60:1),
-        intWindow:interval*(unitInterval? 60:1),
-        }
-    
-    }
-    ws.send(JSON.stringify(msgInit))
-    //this sends the message with the url and sample rate from the useState defined variables above.
-    //the unitSample determines if True = minutes, False = seconds
-    setConnTotal(connTotal+1)
-  };
-
-  ws.onmessage = function (e) {
-    const json = JSON.parse(e.data);
-    const type = json.type
-    // console.log('Server: ', e.data, typeof(e.data));
-    switch (type) {
-        case 'stream':
-    // console.log(json.url, json.latency)
-    updateData({
-        url : json.url,
-        sr : json.sampleRate,
-        incomingData : json.latency,
-        intWindow : json.intWindow,
-        tf : json.tf,
-    });
-    // console.log('pro',dataObj)
-    break;
-
-        case 'pause':
-            updateData(
-                {
-                    url : json.url,
-                    // sr : json.sampleRate,
-                    sr:null,
-                    incomingData : -1,
-                    //set negative number for y value so I can split this later
-                    intWindow:null,
-                    // intWindow : json.intWindow,
-                    tf : json.tf,
-                }
-            )
-    break;}
-
-;}
-
-  ws.onclose = () => {
-      console.log('WebSocket disconnected (client)');
-    //   handleDeleteUrl(ws.id)
-  };}
-
+// const [connTotal, setConnTotal] = useState(0);
+//shows total connections, not used
 
 const uptimeCalc = (obj) => {
 
     //takes the sub object of data, meaning dataObj[url]
-
     //uptime calculated, percentage with 1 decimal place.
     //filter out -1 which mark pauses in data
 
@@ -215,23 +70,176 @@ const uptimeCalc = (obj) => {
 
 }
 
+const updateData = ({url, intWindow, sr, incomingData, tf}) => {
+    //updateData is called on websocket messages to read incoming data.
+        // data format is
+            //dataObj = {keys = url:{keys = color, intWindow, sampleRate, data, time}}
 
+    setDataObj((prevDataObj) => 
+        ({
+        ...prevDataObj,
+        [url]:
+    {
+        ["intWindow"]: prevDataObj[url]?.intWindow || intWindow,
+        ["sampleRate"]: prevDataObj[url]?.sampleRate || sr,
+        ["color"]: prevDataObj[url]?.color || colors[Object.keys(prevDataObj).length%(colors.length+1)],
+        ["data"]:[...(prevDataObj[url]?.data || []),incomingData],
+        ["time"]:[...(prevDataObj[url]?.time || []),tf],
+    
+    }})
+        //in previous version, window of data would slice based on number of samples to reduce overall size of data packet.
+        //with metering pause this got more complicated, would add a data slicer to final product 
+        )
+        // Append incoming data to the existing array
+    };
+
+    const handleDeleteUrl = ({urlKey}) => {
+        //deletes existing graph and data from dataObj if the url exists.
+        setDataObj(current => {
+            const newDataObj = { ...current };
+            delete newDataObj[urlKey];
+            return newDataObj;
+        });
+    };        
+
+const meteringTog = ({type,u,bool}) => {
+    //sends metering or toggling values to server to alter intervals
+
+    const wsTog = new WebSocket('ws://localhost:5000');
+
+    wsTog.onopen = () => {
+   
+        // console.log('metering:', meter)
+        wsTog.send(JSON.stringify({type:type, body: {on:!bool,u:u}}))
+        //bool will be 'all' for toggling metering, this will pause all client's intervals, but not remove them
+        if (u === 'all')
+        {setMeter(!meter)}
+
+        wsTog.close()
+        //close connection after sending. this command could be done with http, does not need to be stateful but backend was set up for this.
+        //would rewrite as post request
+    };
+        
+    wsTog.onclose = () => {
+        console.log('Meter Tog disconnected (client)');
+    };}
+
+const initWebSocket = (url) => {
+    //sets up an interval with url as the key.
+    const ws = new WebSocket('ws://localhost:5000');
+
+  ws.onopen = () => {
+
+    console.log('WebSocket connected', dataObj);
+
+    if (Object.keys(dataObj).includes(url)) {
+        handleDeleteUrl({urlKey :url})
+        //remove plot and dataObj if url already sending data.
+        console.log('removed previous data,', url)
+    } else {console.log([url], typeof(url), Object.keys(dataObj))}
+
+    const msgInit = {
+        //type is to determine what case the server will handle, initInterval starts an interval with the body values below
+        type:'initInterval',
+        body:{
+        url:url,
+        sampleRate:sampleRate*(unitSample? 60:1),
+        intWindow:interval*(unitInterval? 60:1),
+        }
+    
+    }
+    ws.send(JSON.stringify(msgInit))
+    //this sends the message with the url and sample rate from the useState defined variables above.
+    //the unitSample determines if True = minutes, False = seconds
+    // setConnTotal(connTotal++)
+    //unused, but can show total connections, remove when delete connection.
+  };
+
+  ws.onmessage = function (e) {
+    //message can be either stream of pause
+    console.log(e)
+    //stream takes data and continues to receive interval data, pause sends the last data latency=-1, which the plot takes as a pause signal
+    const json = JSON.parse(e.data);
+    const type = json.type
+
+    switch (type) {
+        case 'stream':
+            
+            //typical stream case
+    updateData({
+        url : json.url,
+        sr : json.sampleRate,
+        incomingData : json.latency,
+        intWindow : json.intWindow,
+        tf : json.tf,
+    });
+    // console.log('pro',dataObj)
+    break;
+
+        case 'pause':
+            //when user enters pause, will send a -1 as signal to split data array. hack workaround
+            updateData(
+                {
+                    url : json.url,
+                    sr:null,
+                    //does not need samplerate
+                    incomingData : -1,
+                    //set negative number for y value so I can split this later in Plotting.js
+                    intWindow:null,
+                    tf : json.tf,
+                    //tf is final time, important to show when pause happened
+                }
+            )
+    break;}
+
+;}
+
+  ws.onclose = () => {
+      console.log('WebSocket disconnected (client)');
+    //   handleDeleteUrl(ws.id)
+  };}
+
+//extracts port and combines baseUrl and port
+  const formatUrl = (urlString, portNumber) => {
+    try{
+    const fUrl = new URL(urlString);
+    //formatted URL
+    if (portNumber>0) 
+    {fUrl.port = portNumber;
+    }
+    // Convert the URL object back to a string
+
+    setUrl(fUrl.toString()
+    );
+    return fUrl.toString()}
+    catch (e) {
+        return urlString
+    }
+}
+
+
+//classNames instead of Id in case of reUsing css terms.
+
+//return is quite large, the structure should be broken into more subcomponents (only plotting.js is separate)
+//I would break the init container into a separate component and pass the states and handles to it.
 
 return (
     <div className = "page-container">
         <div className = "init-container">
+            <div className='tab-title'>Initialize Data</div>
+            {/* initialization has slight bug, will not show good data if interval window < sample rate,
+            or if you enter negative numbers for these. would add validators to more finished product*/}
         <div className = "upper-container input-container">
+        
         <label className = 'input-row'>
                 Enter URL/Port<input
                 className = 'input-box'
                 id="url-input"
-                value={urlBase}
+                value={baseUrl}
                 onChange={e => {
-                    setUrlBase(e.target.value);
+                    setBaseUrl(e.target.value);
                 }}
-
                 />
-            
                 <input
                 className = 'input-box'
                 label='port'
@@ -239,21 +247,13 @@ return (
                 type="number"
                 placeholder="enter port"
                 value={port}
-                // onMouseOver={e => }
                 onChange={e =>
                     {setPort(e.target.value);
-                    // formatUrl(urlBase, e.target.value);
-
                 }}
                 />
             </label>
         </div>
-        {/* <div>
-        {dataObj.map((d) => d+' ,')}
-        </div> */}
-        
         <div className = "lower-container input-container">
-            
         <label className = 'input-row'>
                 Select Interval Window<input
                 className = 'input-box'
@@ -271,9 +271,6 @@ return (
             </div>
             <div className = "lower-container input-container">
 
-            {/* <h1 className = "sampling-title">
-                Select Sample Rate
-            </h1> */}
             <label className = 'input-row'>
                 Set Sample Rate <input
                 className = 'input-box'
@@ -291,14 +288,11 @@ return (
             
             
         </div>
-
-        {/* <button
-        onClick = {urlPostReq}>Submit</button> */}
         {meter?<button
     onClick = 
     {()=>{
-        
-        initWebSocket(formatUrl(urlBase,port))}}
+        //this button will set connection after defining url and interval vals! important for basic functioning of app
+        initWebSocket(formatUrl(baseUrl,port))}}
     >Set Connection</button>:<></>}
     {Object.keys(dataObj).length>0?
     <button
@@ -335,7 +329,10 @@ return (
         
         </div>
             <div className="plot-screen">
+            <div className='tab-title'>Data Display Screen</div>
+
             <div className = {`plot-wrapper ${meter?'On':'Off'}`}>
+
             
         
             {Object.keys(dataObj).length>0?
@@ -343,8 +340,9 @@ return (
             Object.keys(dataObj).map((urlKey)=>
             <div>
         <DataPlot
+        // {url, dataArray, intWindow, color, timeArray}
             url = {urlKey}
-            sampleRate = {dataObj[urlKey]["sampleRate"]}
+            // sampleRate = {dataObj[urlKey]["sampleRate"]}
             intWindow = {dataObj[urlKey]["intWindow"]}
             dataArray={dataObj[urlKey]["data"]}
             timeArray={dataObj[urlKey]["time"]}
@@ -354,7 +352,13 @@ return (
             ></DataPlot>
             <div
             className = 'graph-data-holder'>
-            <h2>Uptime: {uptimeCalc(dataObj[urlKey])}%</h2>
+            <h2>Uptime: {uptimeCalc(dataObj[urlKey])}% 
+            over {dataObj[urlKey]["time"]
+            ?
+            (Math.min(...[dataObj[urlKey]["intWindow"],
+            Math.round((dataObj[urlKey]["time"][dataObj[urlKey]["time"].length-1]-dataObj[urlKey]["time"][0])/1000)]))
+            :''
+            } s</h2>
 
             
             <button
@@ -379,7 +383,12 @@ return (
                         <h2>1. Enter Url/Port</h2>
                         <h2>2. Enter the sample rate</h2>
                         <h2>3. Enter the interval window</h2>
+                        <h2>Set unit by clicking bubble next to input window</h2>
                         <h2>4. Click "Set Connection" button</h2>
+                        <h2>5. Update connection by entering same Url with different parameters</h2>
+                        <h2>6. Delete connection by clicking delete button</h2>
+
+
 
                         <h1>Metering</h1>
                         <h2>Global metering button "Toggle Metering" button</h2>
@@ -401,4 +410,4 @@ return (
 
 }
 
-export default InitializeMetering
+export default Dashboard

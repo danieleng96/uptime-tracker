@@ -1,11 +1,5 @@
-// const express = require('express');
-// const app = express();
-
-// const port = 8080
-
-
-
-
+//index.js is an express.js upgraded http and websocket server.
+//although I do not use the http capabillity, I think the toggling functions could be done using this for better results
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
@@ -15,9 +9,7 @@ const ws = require('ws')
 
 const app = express();
 const port = 5000;
-// const PORT = process.env.PORT || 3001;
 const httpServer = app.listen(port)
-// const wss = new ws.Server({ noServer : true })
 
 const wss = new ws.Server({ noServer : true })
 //noServer = true because I will upgrade the http server. might not be necessary
@@ -30,28 +22,42 @@ httpServer.on('upgrade', (req,socket, head) => {
 })
 
 app.use(express.json());
-app.use(cors()); // Use cors middleware
+app.use(cors()); // Use cors middleware. reason I started backend server was because I ran into CORS problems with React.js browser only app
 
 const sendGet = async (url, sampleRate, intWindow) => {
-                            try {
-                            const t0 = Date.now();
-                            const resp = await axios.get(url);
-                            const latency = Date.now()-t0;
-    //needs to be reworked
-                            return ({type: 'stream', url: url, status: resp.status ,latency: latency, sampleRate: sampleRate, intWindow:intWindow, tf:t0+latency})}
-                            catch (e) {
-                                return ({type: 'stream', url: url, status: e.status, latency: 0, sampleRate: sampleRate, intWindow: intWindow, tf:Date.now()})
-                            }
-                }
+    //send get request to a url, measures latency by simple Data.now() subtraction
+    //only takes sampleRate and intWindow to collect params into single packet
+        const inputData = {
+            type: 'stream',
+            url: url,
+            sampleRate: sampleRate,
+            intWindow: intWindow,
+        }
+
+            try {
+                const t0 = Date.now();
+                const resp = await axios.get(url);
+                const latency = Date.now() - t0
+                return {
+                    ...inputData,
+                    status: resp.status,
+                    latency: latency,
+                    tf: t0 + latency
+                };  
+                } catch (e) {
+                return {
+                    ...inputData,
+                    status: e.response ? e.response.status : 0,
+                    latency: 0,
+                    tf: Date.now()
+                };
+            }}
 
 const toggleSingle = (on, client) => {
-    //disable connection for both
-    //if on should reconnect
-    //each toggle on or off
+    //clears interval, if message.type = 'pause', will also send the pause request to pause data displays
+    //in metering case, each client runs this function
+
     if (client.intVals)
-    // if (on) {
-    // clearInterval(cli.interval);}3
-    // else
     {
         clearInterval(client.interval);
              {
@@ -66,18 +72,16 @@ const toggleSingle = (on, client) => {
 
 
 wss.on('connection', (ws) => {
+    //basic connection, will connect on both metering messages and interval init messages
     console.log('connected to client');
 
     ws.on('message', (packet) => {
         const message = JSON.parse(packet.toString());
-        console.log(message)
-        // const { type, body } = message;
         const { type, body} = message;
         switch (type) {
             //need cases to handle: turning on/off all connections: delete connection: initInterval(make connection)
             case 'metering':
-                
-
+            
                 if (body.u === 'all') {
                 if (wss.clients) {
                     wss.clients.forEach(client => {                    
@@ -86,7 +90,11 @@ wss.on('connection', (ws) => {
                             else
                 {
                     if (wss.clients) {
-                        wss.clients.forEach(client => {                 
+                        wss.clients.forEach(client => {  
+
+                            //if body.u (url) is not === all, this means we should disable only a single url. Currently not using this case,
+                            //but would be useful for an individual pause button
+
                             if (client !== ws && client.id === body.u) {   
                                 toggleSingle(body.on, client)}
                                 //disable connection for both
@@ -95,26 +103,9 @@ wss.on('connection', (ws) => {
                     })}
                 }
                 break;
-
-            
-            // case 'meteringOn':
-            //     //needs to have initInterval run first to set interval as variable in ws
-            //     wss.clients.forEach(client => {
-            //         //want to pause interval, save and be able to reactivate.
-                
-            //         console.log('turning on all connections');
-            //         setInterval(client.interval); // Clear the interval fromprevious client
-            //          // Terminate connection
-            //     })
-
-            // case 'metering':
-            //         // Reactivate interval for all clients
-            //         if (wss.clients) {
-            //         wss.clients.forEach(client => {
-            //             toggleSingle(true, client)
-            //         });}
-            //         break
+         
             case 'delete':
+                //delete message is sent by client button, will stop interval and remove client, closing connection.
                 wss.clients.forEach(client => {
                     //remove all duplicate clients, clear their intervals, terminate connections
                 if (client !== ws && client.id === body.u) {
@@ -144,7 +135,7 @@ wss.on('connection', (ws) => {
 
                 const first = async () =>{ws.send(JSON.stringify(await sendGet(url, sampleRate, intWindow)))};
                 first()
-                //send data immediately after setting up the connection, the rest are handled by intervals
+                //send data immediately after setting up the connection so there is not a long delay in the data, the rest are handled by intervals
                 sendAndUpdateInterval(ws, url, sampleRate, intWindow);
                 break
         default:
@@ -161,9 +152,7 @@ wss.on('connection', (ws) => {
 const sendAndUpdateInterval = (ws) => {
     const {url, sampleRate, intWindow} = ws.intVals
     //updates the interval, needs separate function on reinits to build
-    // ws.intervalFunc = async () => {
-    //     ws.send(JSON.stringify(await sendGet(url, sampleRate, intWindow)));
-    //     console.log('sending...', url);
+
     
     ws.interval = setInterval(async () => {
         ws.send(JSON.stringify(await sendGet(url, sampleRate, intWindow)));

@@ -1,3 +1,7 @@
+#Daniel Eng, 3/22/24
+#HRL uptime exercise, frontend in react.js, backend in express.js
+#monitors websites for uptime and plots them. configurable port, urls and intervals.
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
